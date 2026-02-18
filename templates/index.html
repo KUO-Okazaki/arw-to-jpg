@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sony RAW → JPG 変換ツール</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sony RAW → JPG 変換ツール</h1>
+            <p class="subtitle">ARWファイルを簡単にJPGに変換</p>
+        </header>
+
+        <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+                <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <p class="drop-text">ここにARWファイルをドラッグ&ドロップ</p>
+                <p class="drop-hint">または クリックしてファイルを選択</p>
+                <p class="drop-format">対応形式: .ARW (Sony RAW)</p>
+            </div>
+            <input type="file" id="file-input" accept=".arw,.ARW" multiple hidden>
+        </div>
+
+        <div id="settings" class="settings">
+            <div class="quality-control">
+                <label for="quality-slider">JPG品質:</label>
+                <input type="range" id="quality-slider" min="1" max="100" value="95">
+                <span id="quality-value">95%</span>
+            </div>
+            <div class="quality-labels">
+                <span>低品質・小サイズ</span>
+                <span>高品質・大サイズ</span>
+            </div>
+        </div>
+
+        <div id="file-list" class="file-list" hidden>
+            <h2>選択されたファイル (<span id="file-count">0</span>件)</h2>
+            <ul id="file-items"></ul>
+            <button id="convert-btn" class="btn btn-primary">変換開始</button>
+        </div>
+
+        <div id="progress-section" class="progress-section" hidden>
+            <h2>変換中... <span id="progress-text">0/0</span></h2>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="results-section" class="results-section" hidden>
+            <h2>変換結果</h2>
+            <div id="results-grid" class="results-grid"></div>
+            <div class="results-actions">
+                <button id="download-zip-btn" class="btn btn-primary">すべてダウンロード (ZIP)</button>
+                <button id="clear-btn" class="btn btn-secondary">クリア</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>このツールはローカルで動作します。ファイルは外部に送信されません。</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
