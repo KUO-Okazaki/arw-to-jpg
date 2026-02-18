@@ -1,5 +1,6 @@
 """Sony ARW → JPG 変換コアモジュール"""
 
+import gc
 import time
 from pathlib import Path
 
@@ -29,22 +30,30 @@ def convert_arw_to_jpg(input_path: str, output_path: str, quality: int = 95) -> 
                 output_bps=8,
                 no_auto_bright=False,
                 gamma=(2.222, 4.5),
-                demosaic_algorithm=rawpy.DemosaicAlgorithm.AHD,
-                fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Light,
-                median_filter_passes=1,
+                half_size=True,  # メモリ節約：半分のサイズでデモザイク
+                demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
+                fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off,
+                median_filter_passes=0,
             )
 
         image = Image.fromarray(rgb)
+        del rgb
+        gc.collect()
+
         image.save(output_path, "JPEG", quality=quality, optimize=True, subsampling=0)
 
         file_size = Path(output_path).stat().st_size
+        width, height = image.width, image.height
         elapsed = time.time() - start_time
+
+        del image
+        gc.collect()
 
         return {
             "success": True,
             "output_path": output_path,
-            "width": image.width,
-            "height": image.height,
+            "width": width,
+            "height": height,
             "file_size": file_size,
             "elapsed_seconds": round(elapsed, 2),
         }
@@ -59,7 +68,7 @@ def create_thumbnail(jpg_path: str, thumb_path: str, max_size: int = 400) -> boo
     try:
         with Image.open(jpg_path) as img:
             img.thumbnail((max_size, max_size), Image.LANCZOS)
-            img.save(thumb_path, "JPEG", quality=80)
+            img.save(thumb_path, "JPEG", quality=70)
         return True
     except Exception:
         return False

@@ -1,12 +1,13 @@
 """Sony ARW → JPG 変換Webアプリ"""
 
 import atexit
+import gc
 import os
+import shutil
 import tempfile
 import time
 import uuid
 import zipfile
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from flask import (
@@ -20,13 +21,10 @@ from flask import (
 from converter import convert_arw_to_jpg, create_thumbnail
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200MB（クラウド対応）
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
 
 # セッション管理
 sessions: dict = {}
-# クラウド環境ではメモリ節約のため2ワーカー
-max_workers = int(os.environ.get("WORKERS", 2))
-executor = ProcessPoolExecutor(max_workers=max_workers)
 
 
 def cleanup_session(session_id: str) -> None:
@@ -35,13 +33,12 @@ def cleanup_session(session_id: str) -> None:
         return
     session_dir = sessions[session_id].get("dir")
     if session_dir and os.path.isdir(session_dir):
-        import shutil
         shutil.rmtree(session_dir, ignore_errors=True)
     del sessions[session_id]
 
 
-def cleanup_old_sessions(max_age_seconds: int = 3600) -> None:
-    """1時間以上前のセッションをクリーンアップする。"""
+def cleanup_old_sessions(max_age_seconds: int = 1800) -> None:
+    """30分以上前のセッションをクリーンアップする。"""
     now = time.time()
     expired = [
         sid for sid, data in sessions.items()
@@ -49,6 +46,7 @@ def cleanup_old_sessions(max_age_seconds: int = 3600) -> None:
     ]
     for sid in expired:
         cleanup_session(sid)
+    gc.collect()
 
 
 def cleanup_all() -> None:
@@ -112,21 +110,15 @@ def upload():
         cleanup_session(session_id)
         return jsonify({"error": "ARWファイルが見つかりません"}), 400
 
-    # 並列変換
-    futures = []
-    for task in tasks:
-        future = executor.submit(
-            convert_arw_to_jpg,
-            task["input_path"],
-            task["output_path"],
-            quality,
-        )
-        futures.append((future, task))
-
+    # 順次変換（メモリ節約のため1ファイルずつ処理+GC）
     results = []
-    for future, task in futures:
+    for task in tasks:
         try:
-            result = future.result(timeout=120)
+            result = convert_arw_to_jpg(
+                task["input_path"],
+                task["output_path"],
+                quality,
+            )
         except Exception as e:
             result = {"success": False, "error": str(e)}
 
@@ -135,14 +127,15 @@ def upload():
         result["file_id"] = task["file_id"]
         result["input_size"] = task["input_size"]
 
-        # サムネイル生成
         if result.get("success"):
             create_thumbnail(task["output_path"], task["thumb_path"])
-            # 入力ファイル削除（変換済み）
-            try:
-                os.remove(task["input_path"])
-            except OSError:
-                pass
+
+        # 入力ファイル削除+GC（メモリ解放）
+        try:
+            os.remove(task["input_path"])
+        except OSError:
+            pass
+        gc.collect()
 
         results.append(result)
 
@@ -170,7 +163,6 @@ def download(session_id, file_id):
     if not os.path.isfile(jpg_path):
         return "ファイルが見つかりません", 404
 
-    # 元のファイル名を取得
     original_name = None
     for r in sessions[session_id].get("results", []):
         if r.get("file_id") == file_id:
@@ -215,6 +207,7 @@ def download_zip(session_id):
 @app.route("/clear/<session_id>", methods=["POST"])
 def clear(session_id):
     cleanup_session(session_id)
+    gc.collect()
     return jsonify({"success": True})
 
 
