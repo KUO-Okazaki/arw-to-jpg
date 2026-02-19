@@ -5,6 +5,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const qualityValue = document.getElementById("quality-value");
     const wbSlider = document.getElementById("wb-slider");
     const wbValue = document.getElementById("wb-value");
+    const wbPreviewSection = document.getElementById("wb-preview-section");
+    const wbPreviewImg = document.getElementById("wb-preview-img");
+    const wbPreviewName = document.getElementById("wb-preview-name");
+    const wbPreviewLoading = document.getElementById("wb-preview-loading");
     const fileList = document.getElementById("file-list");
     const fileItems = document.getElementById("file-items");
     const fileCount = document.getElementById("file-count");
@@ -19,13 +23,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let selectedFiles = [];
     let currentSessionId = null;
+    let previewSessionId = null;
+    let wbDebounceTimer = null;
 
     // 品質スライダー
     qualitySlider.addEventListener("input", () => {
         qualityValue.textContent = qualitySlider.value + "%";
     });
 
-    // WBスライダー
+    // WBスライダー（値表示 + プレビュー更新）
     wbSlider.addEventListener("input", () => {
         const v = parseInt(wbSlider.value);
         if (v === 0) {
@@ -38,7 +44,57 @@ document.addEventListener("DOMContentLoaded", () => {
             wbValue.textContent = String(v);
             wbValue.style.color = "#4A90D9";
         }
+
+        // プレビューがあればデバウンスで更新
+        if (previewSessionId) {
+            clearTimeout(wbDebounceTimer);
+            wbDebounceTimer = setTimeout(() => updateWbPreview(v), 300);
+        }
     });
+
+    async function updateWbPreview(wb) {
+        if (!previewSessionId) return;
+        wbPreviewLoading.hidden = false;
+        try {
+            const url = `/wb-preview/${previewSessionId}?wb=${wb}&t=${Date.now()}`;
+            const resp = await fetch(url);
+            if (resp.ok) {
+                const blob = await resp.blob();
+                wbPreviewImg.src = URL.createObjectURL(blob);
+            }
+        } catch (e) {
+            // ignore
+        }
+        wbPreviewLoading.hidden = true;
+    }
+
+    async function uploadForPreview() {
+        if (selectedFiles.length === 0) return;
+
+        const formData = new FormData();
+        formData.append("files", selectedFiles[0]);
+
+        wbPreviewSection.hidden = false;
+        wbPreviewName.textContent = selectedFiles[0].name;
+        wbPreviewLoading.hidden = false;
+        wbPreviewImg.src = "";
+
+        try {
+            const resp = await fetch("/upload-preview", {
+                method: "POST",
+                body: formData,
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                previewSessionId = data.session_id;
+                // 初期プレビュー表示
+                await updateWbPreview(parseInt(wbSlider.value));
+            }
+        } catch (e) {
+            // ignore
+        }
+        wbPreviewLoading.hidden = true;
+    }
 
     // ドラッグ&ドロップ
     dropZone.addEventListener("click", () => fileInput.click());
@@ -78,8 +134,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function addFiles(files) {
+        const isFirst = selectedFiles.length === 0;
         selectedFiles = selectedFiles.concat(files);
         renderFileList();
+
+        // 初回ファイル追加時にプレビューをアップロード
+        if (isFirst) {
+            uploadForPreview();
+        }
     }
 
     function renderFileList() {
@@ -107,12 +169,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         convertBtn.disabled = true;
         fileList.hidden = true;
+        wbPreviewSection.hidden = true;
         progressSection.hidden = false;
         resultsSection.hidden = true;
         progressFill.style.width = "0%";
         progressText.textContent = `0/${selectedFiles.length}`;
 
-        // アニメーション用の疑似プログレス
         let fakeProgress = 0;
         const progressInterval = setInterval(() => {
             fakeProgress = Math.min(fakeProgress + 2, 90);
@@ -206,18 +268,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 // ignore
             }
         }
+        if (previewSessionId) {
+            try {
+                await fetch(`/clear/${previewSessionId}`, { method: "POST" });
+            } catch (e) {
+                // ignore
+            }
+        }
         resetUI();
     });
 
     function resetUI() {
         selectedFiles = [];
         currentSessionId = null;
+        previewSessionId = null;
         fileList.hidden = true;
         progressSection.hidden = true;
         resultsSection.hidden = true;
+        wbPreviewSection.hidden = true;
         convertBtn.disabled = false;
         fileItems.innerHTML = "";
         resultsGrid.innerHTML = "";
         progressFill.style.width = "0%";
+        wbSlider.value = 0;
+        wbValue.textContent = "±0";
+        wbValue.style.color = "#555";
     }
 });

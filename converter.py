@@ -103,6 +103,51 @@ def convert_arw_to_jpg(
         return {"success": False, "error": str(e)}
 
 
+def generate_wb_preview(input_path: str, output_path: str, wb_shift: int = 0) -> bool:
+    """
+    WBプレビュー用の低解像度JPGを高速生成する。
+    half_size + LINEAR で最速処理。
+    """
+    try:
+        with rawpy.imread(input_path) as raw:
+            if wb_shift == 0:
+                wb_kwargs = {"use_camera_wb": True}
+            else:
+                cam_wb = raw.camera_whitebalance
+                user_wb = _adjust_wb(cam_wb, wb_shift)
+                wb_kwargs = {"user_wb": user_wb}
+
+            rgb = raw.postprocess(
+                **wb_kwargs,
+                output_color=rawpy.ColorSpace.sRGB,
+                output_bps=8,
+                no_auto_bright=False,
+                gamma=(2.222, 4.5),
+                half_size=True,
+                demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
+                fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off,
+                median_filter_passes=0,
+            )
+
+        image = Image.fromarray(rgb)
+        del rgb
+
+        # 600px幅にリサイズしてプレビュー用に
+        max_w = 600
+        if image.width > max_w:
+            ratio = max_w / image.width
+            new_h = int(image.height * ratio)
+            image = image.resize((max_w, new_h), Image.LANCZOS)
+
+        image.save(output_path, "JPEG", quality=75)
+        del image
+        gc.collect()
+        return True
+    except Exception:
+        gc.collect()
+        return False
+
+
 def create_thumbnail(jpg_path: str, thumb_path: str, max_size: int = 400) -> bool:
     """JPGからサムネイルを生成する。"""
     try:

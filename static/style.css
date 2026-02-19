@@ -162,6 +162,51 @@ header h1 {
     margin: 16px 0;
 }
 
+/* WBプレビュー */
+.wb-preview-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.wb-preview-section h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.wb-preview-section h2 span {
+    font-weight: 400;
+    color: #86868b;
+    font-size: 13px;
+}
+
+.wb-preview-wrap {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f2f2f7;
+}
+
+.wb-preview-wrap img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+}
+
+.wb-preview-loading {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
 /* ファイルリスト */
 .file-list {
     background: #fff;

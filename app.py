@@ -18,7 +18,7 @@ from flask import (
     send_file,
 )
 
-from converter import convert_arw_to_jpg, create_thumbnail
+from converter import convert_arw_to_jpg, create_thumbnail, generate_wb_preview
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
@@ -61,6 +61,69 @@ atexit.register(cleanup_all)
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/upload-preview", methods=["POST"])
+def upload_preview():
+    """プレビュー用に1枚目のARWファイルをアップロードし、初期プレビューを返す。"""
+    cleanup_old_sessions()
+
+    files = request.files.getlist("files")
+    if not files:
+        return jsonify({"error": "ファイルが選択されていません"}), 400
+
+    # 1枚目のARWファイルのみ保存
+    f = None
+    for candidate in files:
+        if candidate.filename and candidate.filename.lower().endswith(".arw"):
+            f = candidate
+            break
+
+    if not f:
+        return jsonify({"error": "ARWファイルが見つかりません"}), 400
+
+    session_id = str(uuid.uuid4())
+    session_dir = tempfile.mkdtemp(prefix=f"preview_{session_id[:8]}_")
+    preview_arw = os.path.join(session_dir, "preview.arw")
+    preview_jpg = os.path.join(session_dir, "preview.jpg")
+    f.save(preview_arw)
+
+    sessions[session_id] = {
+        "dir": session_dir,
+        "preview_arw": preview_arw,
+        "results": [],
+        "created_at": time.time(),
+    }
+
+    # 初期プレビュー生成（カメラWB）
+    ok = generate_wb_preview(preview_arw, preview_jpg, wb_shift=0)
+    if not ok:
+        cleanup_session(session_id)
+        return jsonify({"error": "プレビュー生成に失敗しました"}), 500
+
+    return jsonify({"session_id": session_id, "preview_name": f.filename})
+
+
+@app.route("/wb-preview/<session_id>")
+def wb_preview(session_id):
+    """WBスライダー変更時にプレビュー画像を再生成して返す。"""
+    if session_id not in sessions:
+        return "セッションが見つかりません", 404
+
+    wb_shift = int(request.args.get("wb", 0))
+    wb_shift = max(-50, min(50, wb_shift))
+
+    session_dir = sessions[session_id]["dir"]
+    preview_arw = sessions[session_id].get("preview_arw")
+    if not preview_arw or not os.path.isfile(preview_arw):
+        return "プレビュー用ファイルが見つかりません", 404
+
+    preview_jpg = os.path.join(session_dir, "preview.jpg")
+    ok = generate_wb_preview(preview_arw, preview_jpg, wb_shift)
+    if not ok:
+        return "プレビュー生成に失敗しました", 500
+
+    return send_file(preview_jpg, mimetype="image/jpeg")
 
 
 @app.route("/upload", methods=["POST"])
