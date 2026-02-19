@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileInput = document.getElementById("file-input");
     const qualitySlider = document.getElementById("quality-slider");
     const qualityValue = document.getElementById("quality-value");
+    const wbSlider = document.getElementById("wb-slider");
+    const wbValue = document.getElementById("wb-value");
     const fileList = document.getElementById("file-list");
     const fileItems = document.getElementById("file-items");
     const fileCount = document.getElementById("file-count");
@@ -21,6 +23,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // 品質スライダー
     qualitySlider.addEventListener("input", () => {
         qualityValue.textContent = qualitySlider.value + "%";
+    });
+
+    // WBスライダー
+    wbSlider.addEventListener("input", () => {
+        const v = parseInt(wbSlider.value);
+        if (v === 0) {
+            wbValue.textContent = "±0";
+            wbValue.style.color = "#555";
+        } else if (v > 0) {
+            wbValue.textContent = "+" + v;
+            wbValue.style.color = "#E8734A";
+        } else {
+            wbValue.textContent = String(v);
+            wbValue.style.color = "#4A90D9";
+        }
     });
 
     // ドラッグ&ドロップ
@@ -105,6 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const formData = new FormData();
         selectedFiles.forEach((file) => formData.append("files", file));
         formData.append("quality", qualitySlider.value);
+        formData.append("wb_shift", wbSlider.value);
 
         try {
             const response = await fetch("/upload", {

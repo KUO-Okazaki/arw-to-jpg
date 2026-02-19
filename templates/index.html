@@ -27,14 +27,27 @@
         </div>
 
         <div id="settings" class="settings">
-            <div class="quality-control">
+            <div class="slider-control">
                 <label for="quality-slider">JPG品質:</label>
                 <input type="range" id="quality-slider" min="1" max="100" value="95">
                 <span id="quality-value">95%</span>
             </div>
-            <div class="quality-labels">
+            <div class="slider-labels">
                 <span>低品質・小サイズ</span>
                 <span>高品質・大サイズ</span>
+            </div>
+
+            <div class="slider-divider"></div>
+
+            <div class="slider-control">
+                <label for="wb-slider">ホワイトバランス:</label>
+                <input type="range" id="wb-slider" min="-50" max="50" value="0" class="wb-range">
+                <span id="wb-value">±0</span>
+            </div>
+            <div class="slider-labels">
+                <span>寒色（青）</span>
+                <span>カメラWB</span>
+                <span>暖色（赤）</span>
             </div>
         </div>
 

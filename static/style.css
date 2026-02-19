@@ -86,7 +86,7 @@ header h1 {
     color: #aeaeb2;
 }
 
-/* 品質設定 */
+/* 設定パネル */
 .settings {
     background: #fff;
     border-radius: 12px;
@@ -95,19 +95,20 @@ header h1 {
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-.quality-control {
+.slider-control {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.quality-control label {
+.slider-control label {
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
+    min-width: 120px;
 }
 
-#quality-slider {
+.slider-control input[type="range"] {
     flex: 1;
     -webkit-appearance: none;
     height: 6px;
@@ -116,7 +117,7 @@ header h1 {
     outline: none;
 }
 
-#quality-slider::-webkit-slider-thumb {
+.slider-control input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
@@ -126,7 +127,15 @@ header h1 {
     box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
-#quality-value {
+.slider-control .wb-range {
+    background: linear-gradient(to right, #4A90D9, #e5e5ea 45%, #e5e5ea 55%, #E8734A);
+}
+
+.slider-control .wb-range::-webkit-slider-thumb {
+    background: #555;
+}
+
+#quality-value, #wb-value {
     font-size: 14px;
     font-weight: 700;
     color: #FF6600;
@@ -134,13 +143,23 @@ header h1 {
     text-align: right;
 }
 
-.quality-labels {
+#wb-value {
+    color: #555;
+}
+
+.slider-labels {
     display: flex;
     justify-content: space-between;
     font-size: 11px;
     color: #aeaeb2;
     margin-top: 6px;
     padding: 0 4px;
+}
+
+.slider-divider {
+    height: 1px;
+    background: #f2f2f7;
+    margin: 16px 0;
 }
 
 /* ファイルリスト */

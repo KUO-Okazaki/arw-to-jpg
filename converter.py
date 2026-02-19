@@ -5,6 +5,7 @@ import os
 import time
 from pathlib import Path
 
+import numpy as np
 import rawpy
 from PIL import Image
 
@@ -12,16 +13,48 @@ from PIL import Image
 LOCAL_MODE = os.environ.get("LOCAL_MODE", "0") == "1"
 
 
-def convert_arw_to_jpg(input_path: str, output_path: str, quality: int = 95) -> dict:
-    """Sony ARWファイルをJPGに変換する（カラー正規化付き）。"""
+def _adjust_wb(camera_wb, wb_shift: int):
+    """
+    カメラWBにユーザーの色温度シフトを適用する。
+
+    wb_shift: -50（寒色/青）〜 0（カメラWB）〜 +50（暖色/赤）
+    """
+    if wb_shift == 0:
+        return list(camera_wb)
+
+    # カメラWBをコピー [R, G, B, G2]
+    wb = list(camera_wb)
+
+    # シフト量を係数に変換（-50〜+50 → 0.7〜1.3倍）
+    factor = 1.0 + wb_shift / 166.0
+
+    # 暖色(+): Rを増やしBを減らす / 寒色(-): Rを減らしBを増やす
+    wb[0] = wb[0] * factor        # R
+    wb[2] = wb[2] / factor        # B
+    # G, G2 はそのまま
+
+    return wb
+
+
+def convert_arw_to_jpg(
+    input_path: str, output_path: str, quality: int = 95, wb_shift: int = 0
+) -> dict:
+    """Sony ARWファイルをJPGに変換する（カラー正規化+WB調整付き）。"""
     start_time = time.time()
 
     try:
         with rawpy.imread(input_path) as raw:
+            # WB設定
+            if wb_shift == 0:
+                wb_kwargs = {"use_camera_wb": True}
+            else:
+                cam_wb = raw.camera_whitebalance
+                user_wb = _adjust_wb(cam_wb, wb_shift)
+                wb_kwargs = {"user_wb": user_wb}
+
             if LOCAL_MODE:
-                # ローカル：フル解像度・高品質デモザイク
                 rgb = raw.postprocess(
-                    use_camera_wb=True,
+                    **wb_kwargs,
                     output_color=rawpy.ColorSpace.sRGB,
                     output_bps=8,
                     no_auto_bright=False,
@@ -31,9 +64,8 @@ def convert_arw_to_jpg(input_path: str, output_path: str, quality: int = 95) -> 
                     median_filter_passes=1,
                 )
             else:
-                # クラウド：メモリ節約モード
                 rgb = raw.postprocess(
-                    use_camera_wb=True,
+                    **wb_kwargs,
                     output_color=rawpy.ColorSpace.sRGB,
                     output_bps=8,
                     no_auto_bright=False,

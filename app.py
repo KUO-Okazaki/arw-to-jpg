@@ -69,6 +69,8 @@ def upload():
 
     quality = int(request.form.get("quality", 95))
     quality = max(1, min(100, quality))
+    wb_shift = int(request.form.get("wb_shift", 0))
+    wb_shift = max(-50, min(50, wb_shift))
     files = request.files.getlist("files")
 
     if not files:
@@ -118,6 +120,7 @@ def upload():
                 task["input_path"],
                 task["output_path"],
                 quality,
+                wb_shift,
             )
         except Exception as e:
             result = {"success": False, "error": str(e)}
