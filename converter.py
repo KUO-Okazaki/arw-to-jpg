@@ -1,40 +1,48 @@
 """Sony ARW → JPG 変換コアモジュール"""
 
 import gc
+import os
 import time
 from pathlib import Path
 
 import rawpy
 from PIL import Image
 
+# ローカルモード（.exe / ローカル実行）ではフル品質
+LOCAL_MODE = os.environ.get("LOCAL_MODE", "0") == "1"
+
 
 def convert_arw_to_jpg(input_path: str, output_path: str, quality: int = 95) -> dict:
-    """
-    Sony ARWファイルをJPGに変換する（カラー正規化付き）。
-
-    Args:
-        input_path: 入力ARWファイルパス
-        output_path: 出力JPGファイルパス
-        quality: JPG品質 (1-100)
-
-    Returns:
-        変換結果のメタデータ辞書
-    """
+    """Sony ARWファイルをJPGに変換する（カラー正規化付き）。"""
     start_time = time.time()
 
     try:
         with rawpy.imread(input_path) as raw:
-            rgb = raw.postprocess(
-                use_camera_wb=True,
-                output_color=rawpy.ColorSpace.sRGB,
-                output_bps=8,
-                no_auto_bright=False,
-                gamma=(2.222, 4.5),
-                half_size=True,  # メモリ節約：半分のサイズでデモザイク
-                demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
-                fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off,
-                median_filter_passes=0,
-            )
+            if LOCAL_MODE:
+                # ローカル：フル解像度・高品質デモザイク
+                rgb = raw.postprocess(
+                    use_camera_wb=True,
+                    output_color=rawpy.ColorSpace.sRGB,
+                    output_bps=8,
+                    no_auto_bright=False,
+                    gamma=(2.222, 4.5),
+                    demosaic_algorithm=rawpy.DemosaicAlgorithm.AHD,
+                    fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Light,
+                    median_filter_passes=1,
+                )
+            else:
+                # クラウド：メモリ節約モード
+                rgb = raw.postprocess(
+                    use_camera_wb=True,
+                    output_color=rawpy.ColorSpace.sRGB,
+                    output_bps=8,
+                    no_auto_bright=False,
+                    gamma=(2.222, 4.5),
+                    half_size=True,
+                    demosaic_algorithm=rawpy.DemosaicAlgorithm.LINEAR,
+                    fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off,
+                    median_filter_passes=0,
+                )
 
         image = Image.fromarray(rgb)
         del rgb
